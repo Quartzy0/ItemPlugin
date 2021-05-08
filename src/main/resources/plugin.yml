@@ -1,0 +1,17 @@
+main: com.quartzy.itemplugin.ItemPlugin
+name: @name@
+version: @version@
+api-version: 1.16
+description: Add custom items
+
+commands:
+  testcommand:
+    description: Just for tesing
+    aliases:
+      - test
+    usage: "Usage: /<command> lol"
+  gi:
+    description: Give item with support for custom items
+    aliases:
+      - giveitem
+    usage: "Usage: /giveitem <item>"
