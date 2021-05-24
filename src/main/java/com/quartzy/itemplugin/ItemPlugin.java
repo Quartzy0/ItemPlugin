@@ -3,7 +3,6 @@ package com.quartzy.itemplugin;
 import com.quartzy.itemplugin.abilities.Ability;
 import com.quartzy.itemplugin.abilities.TestAbility;
 import com.quartzy.itemplugin.blocks.BlockManager;
-import com.quartzy.itemplugin.blocks.BlockWorkbench;
 import com.quartzy.itemplugin.blocks.CustomBlockImpl;
 import com.quartzy.itemplugin.commands.GiveItemCommand;
 import com.quartzy.itemplugin.commands.RefreshCommand;
@@ -21,13 +20,11 @@ import lombok.Getter;
 import lombok.NonNull;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.ShapelessRecipe;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -270,8 +267,6 @@ public final class ItemPlugin extends JavaPlugin implements ItemPluginHandler{
     
     @Override
     public void addItems(ItemManager itemManager){
-        itemManager.addItem(new CustomItem(Material.CRAFTING_TABLE, "Workbench", Rarity.COMMON, "Epic crafty boi", null, "WORKBENCH_ITEM"));
-    
         TestAbility testAbility = new TestAbility(5);
         itemManager.addItem(new CustomItem(Material.DIAMOND_SWORD, "Aspect of the end", Rarity.EPIC, "Epic sword that do da whooosh", new Ability[]{testAbility}, "ASPECT_OF_THE_END"));
         itemManager.addAbility(testAbility);
@@ -280,7 +275,6 @@ public final class ItemPlugin extends JavaPlugin implements ItemPluginHandler{
     
     @Override
     public void addBlocks(BlockManager blockManager){
-        blockManager.addBlock(new BlockWorkbench());
     }
     
     @Override
