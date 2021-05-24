@@ -1,0 +1,7 @@
+name: TestAddon
+version: @version@
+main: com.quartzy.testaddon.TestAddon
+api-version: 1.16
+depend: [ ItemPlugin ]
+authors: [ Quartzy0 ]
+description: Addon for the item plugin

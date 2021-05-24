@@ -14,10 +14,6 @@ public class BlockManager{
     private HashMap<String, BlockWorldManager> blockManagers = new HashMap<>();
     private HashMap<String, CustomBlock> blocks = new HashMap<>();
     
-    public BlockManager(){
-        blocks.put("WORKBENCH", new BlockWorkbench());
-    }
-    
     public CustomBlock getBlockFromItemStack(ItemStack itemStack){
         if(!ItemPlugin.getINSTANCE().getItemManager().isItemValid(itemStack))return null;
     
@@ -29,6 +25,10 @@ public class BlockManager{
             }
         }
         return null;
+    }
+    
+    public void addBlock(CustomBlock block){
+        blocks.put(block.getId(), block);
     }
     
     public CustomBlock getBlockById(String id){
@@ -74,5 +74,9 @@ public class BlockManager{
             blockManagers.put(world.getName(), blockWorldManager);
         }
         blockWorldManager.readBlockData();
+    }
+    
+    public void clearBlocks(){
+        blocks.clear();
     }
 }

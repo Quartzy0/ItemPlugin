@@ -14,12 +14,12 @@ public class GiveItemCommand implements CommandExecutor{
     @Override
     public boolean onCommand(CommandSender sender, Command command, String s, String[] args){
         if(sender instanceof Player){
-            ItemManager itemManager = ItemPlugin.getINSTANCE().getItemManager();
+            ItemManager itemManager = ItemPlugin.getItemManager();
             ItemStack item = itemManager.createItem(args[0], 1);
             if(item!=null){
                 ((Player) sender).getInventory().addItem(item);
             }else{
-                BlockManager blockManager = ItemPlugin.getINSTANCE().getBlockManager();
+                BlockManager blockManager = ItemPlugin.getBlockManager();
                 CustomBlock blockById = blockManager.getBlockById(args[0]);
                 if(blockById!=null){
                     ItemStack item1 = itemManager.createItem(blockById.getBlockItem(), 1);

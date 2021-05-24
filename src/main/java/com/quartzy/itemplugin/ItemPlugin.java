@@ -1,48 +1,61 @@
 package com.quartzy.itemplugin;
 
+import com.quartzy.itemplugin.abilities.Ability;
+import com.quartzy.itemplugin.abilities.TestAbility;
 import com.quartzy.itemplugin.blocks.BlockManager;
+import com.quartzy.itemplugin.blocks.BlockWorkbench;
+import com.quartzy.itemplugin.blocks.CustomBlockImpl;
 import com.quartzy.itemplugin.commands.GiveItemCommand;
+import com.quartzy.itemplugin.commands.RefreshCommand;
 import com.quartzy.itemplugin.commands.TestCommand;
 import com.quartzy.itemplugin.inv.InventoryManager;
+import com.quartzy.itemplugin.items.CustomItem;
 import com.quartzy.itemplugin.items.ItemManager;
+import com.quartzy.itemplugin.items.Rarity;
 import com.quartzy.itemplugin.listener.AbilityListener;
 import com.quartzy.itemplugin.listener.BlockListener;
 import com.quartzy.itemplugin.listener.InventoryListener;
 import com.quartzy.itemplugin.listener.ItemValidationListener;
 import com.quartzy.itemplugin.util.RecipeHelper;
 import lombok.Getter;
+import lombok.NonNull;
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.World;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.ShapelessRecipe;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
-public final class ItemPlugin extends JavaPlugin{
+public final class ItemPlugin extends JavaPlugin implements ItemPluginHandler{
     
     public static final String pluginVersion = "1.0-SNAPSHOT";
     
     @Getter
     private static ItemPlugin INSTANCE;
     
-    @Getter
+    private List<ItemPluginHandler> handlers = new ArrayList<>();
+    
     private ItemManager itemManager;
-    @Getter
     private BlockManager blockManager;
-    @Getter
     private InventoryManager inventoryManager;
     
     @Getter
     private YamlConfiguration masterConfig;
     @Getter
     private List<YamlConfiguration> itemConfiguration;
+    @Getter
+    private List<YamlConfiguration> blockConfiguration;
     
-    private void resolveItemConfigurations(File file){
+    private void resolveConfigurations(File file, List<YamlConfiguration> config){
         if(file==null)return;
         if(!file.isDirectory()){
             YamlConfiguration yamlConfiguration = new YamlConfiguration();
@@ -51,36 +64,142 @@ public final class ItemPlugin extends JavaPlugin{
             } catch(IOException | InvalidConfigurationException e){
                 e.printStackTrace();
             }
-            itemConfiguration.add(yamlConfiguration);
+            config.add(yamlConfiguration);
         }else{
             for(File listFile : file.listFiles()){
-                resolveItemConfigurations(listFile);
+                resolveConfigurations(listFile, config);
             }
         }
     }
     
+    private void loadItemsFromConfig(){
+        for(YamlConfiguration yamlConfiguration : itemConfiguration){
+            Set<String> keys = yamlConfiguration.getKeys(false);
+            for(String key : keys){
+                ConfigurationSection configurationSection = yamlConfiguration.getConfigurationSection(key);
+                Material mat = Material.getMaterial(ifNull(configurationSection.getString("material"), "AIR").toUpperCase());
+                if(mat.isAir()){
+                    Bukkit.getLogger().warning("Item " + key + " has an invalid material (material cannot be empty or air)");
+                    continue;
+                }
+                String name = ifNull(configurationSection.getString("name"), key);
+                Rarity rarity = Rarity.valueOf(ifNull(configurationSection.getString("rarity"), "COMMON").toUpperCase());
+                String description = configurationSection.getString("description");
+                List<String> abilitiesS = configurationSection.getStringList("abilities");
+                if(abilitiesS.size() == 0){
+                    String pos1 = configurationSection.getString("abilities");
+                    String pos2 = configurationSection.getString("ability");
+                    if(pos1!=null){
+                        abilitiesS.add(pos1);
+                    }else if(pos2!=null){
+                        abilitiesS.add(pos2);
+                    }
+                }
+                List<Ability> abilities = new ArrayList<>();
+                for(int i = 0; i < abilitiesS.size(); i++){
+                    Ability ability = itemManager.getAbility(abilitiesS.get(i));
+                    if(ability != null){
+                        abilities.add(ability);
+                    }
+                }
+                CustomItem newItem = new CustomItem(mat, name, rarity, description, abilities.toArray(new Ability[0]), key);
+                if(itemManager.getItemById(key) != null){
+                    Bukkit.getLogger().warning("Item " + key + " already exists and will be overwritten");
+                }
+                itemManager.addItem(newItem);
+            }
+        }
+    }
+    
+    private void loadBlocksFromConfig(){
+        for(YamlConfiguration yamlConfiguration : blockConfiguration){
+            Set<String> keys = yamlConfiguration.getKeys(false);
+            for(String key : keys){
+                ConfigurationSection configurationSection = yamlConfiguration.getConfigurationSection(key);
+                Material mat = Material.getMaterial(ifNull(configurationSection.getString("material"), "AIR").toUpperCase());
+                if(mat.isAir()){
+                    Bukkit.getLogger().warning("Block " + key + " has an invalid material (material cannot be empty or air)");
+                    continue;
+                }
+                if(!mat.isBlock()){
+                    Bukkit.getLogger().warning("Block " + key + " has an invalid material (material must be a block)");
+                    continue;
+                }
+                String blockName = ifNull(configurationSection.getString("name"), key);
+                String blockItem = ifNull(configurationSection.getString("block_item"), mat.name()).toUpperCase();
+                String description = configurationSection.getString("description");
+                Rarity rarity = Rarity.valueOf(ifNull(configurationSection.getString("rarity"), "COMMON").toUpperCase());
+                String _action_type = configurationSection.getString("action_type");
+                ActionType actionType = null;
+                if(_action_type!=null) actionType = ActionType.valueOf(_action_type.toUpperCase());
+                String commandToExecute = configurationSection.getString("command");
+                boolean asPlayer = configurationSection.getBoolean("as_player");
+                
+                CustomBlockImpl customBlock = new CustomBlockImpl(blockItem, blockName, description, key, mat, rarity, actionType, commandToExecute, asPlayer);
+                if(blockManager.getBlockById(key.toUpperCase())!=null){
+                    Bukkit.getLogger().warning("Block with id " + key + " already exists and will be overwritten");
+                }
+                blockManager.addBlock(customBlock);
+            }
+        }
+    }
+    
+    public void reloadItems(){
+        itemManager.clearItems();
+    
+        //Load all items from addons' handlers
+        for(ItemPluginHandler handler : handlers){
+            handler.addItems(itemManager);
+        }
+    
+        //Load all items from the config files and warn user if a duplicate exists
+        loadItemsFromConfig();
+    }
+    
+    public void reloadBlocks(){
+        blockManager.clearBlocks();
+        
+        //Load all blocks from addons' handlers
+        for(ItemPluginHandler handler : handlers){
+            handler.addBlocks(blockManager);
+        }
+        
+        loadBlocksFromConfig();
+    }
+    
+    
     @Override
-    public void onEnable(){
+    public void onLoad(){
         INSTANCE = this;
-        RecipeHelper.init();
         inventoryManager = new InventoryManager();
         itemManager = new ItemManager();
         blockManager = new BlockManager();
         for(World world : getServer().getWorlds()){
             blockManager.loadData(world);
         }
+        RecipeHelper.init();
+    }
+    
+    @Override
+    public void onEnable(){
         
         //Initialise the config files
         Path dataFolder = getDataFolder().toPath();
         File itemConfigurationFolder = dataFolder.resolve("item_config").toFile();
+        File blockConfigurationFolder = dataFolder.resolve("block_config").toFile();
         File masterConfigFile = dataFolder.resolve("config.yml").toFile();
         masterConfig = new YamlConfiguration();
         try{
             if(!itemConfigurationFolder.exists()){
                 itemConfigurationFolder.mkdirs();
-                itemConfiguration = new ArrayList<>();
-                resolveItemConfigurations(itemConfigurationFolder);
             }
+            if(!blockConfigurationFolder.exists()){
+                blockConfigurationFolder.mkdirs();
+            }
+            itemConfiguration = new ArrayList<>();
+            blockConfiguration = new ArrayList<>();
+            resolveConfigurations(itemConfigurationFolder, itemConfiguration);
+            resolveConfigurations(blockConfigurationFolder, blockConfiguration);
             if(!masterConfigFile.exists()){
                 dataFolder.toFile().mkdirs();
                 masterConfigFile.createNewFile();
@@ -89,6 +208,15 @@ public final class ItemPlugin extends JavaPlugin{
         } catch(IOException | InvalidConfigurationException e){
             e.printStackTrace();
         }
+        //Add self as handler to add custom blocks
+        addHandler(this);
+        
+        //Load all items
+        reloadItems();
+        //Load all blocks
+        reloadBlocks();
+        //Load all recipes
+        reloadRecipes();
     
         //Register listeners
         getServer().getPluginManager().registerEvents(new ItemValidationListener(), this);
@@ -99,14 +227,73 @@ public final class ItemPlugin extends JavaPlugin{
         //Register commands
         getCommand("testcommand").setExecutor(new TestCommand());
         getCommand("gi").setExecutor(new GiveItemCommand());
+        getCommand("refresh").setExecutor(new RefreshCommand());
         
         Bukkit.getServer().getLogger().info("Item Plugin enabled");
     }
+    
+    public void reloadRecipes(){
+        RecipeHelper.init();
+    
+        for(ItemPluginHandler handler : handlers){
+            handler.addRecipes();
+        }
+    }
+    
     
     @Override
     public void onDisable(){
         blockManager.saveData();
         
         Bukkit.getServer().getLogger().info("Item Plugin disabled");
+    }
+    
+    public static ItemManager getItemManager(){
+        return INSTANCE.itemManager;
+    }
+    
+    public static BlockManager getBlockManager(){
+        return INSTANCE.blockManager;
+    }
+    
+    public static InventoryManager getInventoryManager(){
+        return INSTANCE.inventoryManager;
+    }
+    
+    public static void addHandler(@NonNull ItemPluginHandler handler){
+        INSTANCE.handlers.add(handler);
+    }
+    
+    private static <T> T ifNull(T in, T def){
+        return in==null ? def : in;
+    }
+    
+    @Override
+    public void addItems(ItemManager itemManager){
+        itemManager.addItem(new CustomItem(Material.CRAFTING_TABLE, "Workbench", Rarity.COMMON, "Epic crafty boi", null, "WORKBENCH_ITEM"));
+    
+        TestAbility testAbility = new TestAbility(5);
+        itemManager.addItem(new CustomItem(Material.DIAMOND_SWORD, "Aspect of the end", Rarity.EPIC, "Epic sword that do da whooosh", new Ability[]{testAbility}, "ASPECT_OF_THE_END"));
+        itemManager.addAbility(testAbility);
+        itemManager.addItem(new CustomItem(Material.DIAMOND, "Special diamond", Rarity.RARE, "Rare shiny diamond", null, "SPECIAL_DIAMOND"));
+    }
+    
+    @Override
+    public void addBlocks(BlockManager blockManager){
+        blockManager.addBlock(new BlockWorkbench());
+    }
+    
+    @Override
+    public void addRecipes(){
+        HashMap<Character, RecipeHelper.MaterialChoice> charMap = new HashMap<>();
+        charMap.put('d', new RecipeHelper.MaterialChoice("SPECIAL_DIAMOND"));
+        charMap.put('s', new RecipeHelper.MaterialChoice("STICK"));
+    
+        ItemStack aspect_of_the_end = itemManager.createItem("ASPECT_OF_THE_END", 1);
+        RecipeHelper.addShapedRecipe(aspect_of_the_end, charMap, "d", "d", "s");
+    
+        List<RecipeHelper.MaterialChoice> ing = new ArrayList<>();
+        ing.add(new RecipeHelper.MaterialChoice("SPECIAL_DIAMOND"));
+        RecipeHelper.addShapelessRecipe(ing, itemManager.createItem("DIAMOND", 64));
     }
 }

@@ -3,11 +3,11 @@ package com.quartzy.itemplugin.items;
 import com.quartzy.itemplugin.ItemPlugin;
 import com.quartzy.itemplugin.abilities.Ability;
 import com.quartzy.itemplugin.abilities.TestAbility;
-import com.quartzy.itemplugin.blocks.CustomBlock;
-import net.minecraft.server.v1_16_R3.*;
+import net.minecraft.server.v1_16_R3.NBTTagCompound;
+import net.minecraft.server.v1_16_R3.NBTTagList;
+import net.minecraft.server.v1_16_R3.NBTTagString;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.craftbukkit.v1_16_R3.inventory.CraftItemStack;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -15,37 +15,43 @@ import org.bukkit.inventory.meta.ItemMeta;
 import javax.annotation.Nullable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
 
 public class ItemManager{
     
     private HashMap<java.lang.String, CustomItem> items = new HashMap<>();
     private HashMap<java.lang.String, Ability> abilities = new HashMap<>();
     
-    public ItemManager(){
-        items.put("WORKBENCH_ITEM", new CustomItem(Material.CRAFTING_TABLE, "Workbench", Rarity.COMMON, "Epic crafty boi", null, "WORKBENCH_ITEM"));
-        
-        TestAbility testAbility = new TestAbility(5);
-        items.put("ASPECT_OF_THE_END", new CustomItem(Material.DIAMOND_SWORD, "Aspect of the end", Rarity.EPIC, "Epic sword that do da whooosh", new Ability[]{testAbility}, "ASPECT_OF_THE_END"));
-        abilities.put(testAbility.getId(), testAbility);
+    public void addItem(CustomItem item){
+        items.put(item.getId(), item);
     }
     
-    public Ability getAbility(java.lang.String id){
+    public CustomItem getItemById(String id){
+        return items.get(id);
+    }
+    
+    public static String getItemId(ItemStack item){
+        if(item==null)return null;
+        net.minecraft.server.v1_16_R3.ItemStack nmsItemStack = CraftItemStack.asNMSCopy(item);
+        NBTTagCompound tag = nmsItemStack.getTag();
+        if(tag==null)return item.getType().name();
+        if(!tag.hasKey("internalId"))return item.getType().name();
+        return tag.getString("internalId").toUpperCase();
+    }
+    
+    public static String getItemId(net.minecraft.server.v1_16_R3.ItemStack item){
+        return getItemId(CraftItemStack.asBukkitCopy(item));
+    }
+    
+    public Ability getAbility(String id){
         return abilities.get(id);
     }
     
-    public void loadItems(){
-        List<YamlConfiguration> itemConfiguration = ItemPlugin.getINSTANCE().getItemConfiguration();
-        for(YamlConfiguration yamlConfiguration : itemConfiguration){
-            Set<java.lang.String> keys = yamlConfiguration.getKeys(false);
-            for(java.lang.String key : keys){
-                Material material = Material.valueOf(yamlConfiguration.getString(key + ".material"));
-                java.lang.String name = yamlConfiguration.getString(key + ".name");
-                java.lang.String description = yamlConfiguration.getString(key + ".description");
-                Rarity rarity = Rarity.valueOf(yamlConfiguration.getString(key + ".rarity"));
-                
-            }
-        }
+    public void addAbility(Ability ability){
+        abilities.put(ability.getId(), ability);
     }
     
     public boolean isItemValid(@Nullable ItemStack itemStack){
@@ -203,5 +209,9 @@ public class ItemManager{
             itemStack.setItemMeta(itemMeta);
         }
         return itemStack;
+    }
+    
+    public void clearItems(){
+        items.clear();
     }
 }

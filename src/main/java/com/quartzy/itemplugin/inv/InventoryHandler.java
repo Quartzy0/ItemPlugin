@@ -4,6 +4,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
+import org.bukkit.event.inventory.DragType;
 import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.Inventory;
@@ -11,6 +12,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.HashMap;
+import java.util.Map;
 
 public abstract class InventoryHandler{
     private HashMap<Byte, Inventory> inventories = new HashMap<>();
@@ -18,7 +20,13 @@ public abstract class InventoryHandler{
     private Player player;
     
     public abstract Inventory inventoryOpen();
-    public abstract boolean itemClicked(int slot, InventoryAction action, ClickType clickType);
+    public abstract void itemClickedPost(int slot, InventoryAction action, ClickType clickType);
+    public abstract boolean shouldCancelClick(int slot, InventoryAction action, ClickType clickType);
+    
+    public abstract boolean shouldCancelDrag(Map<Integer, ItemStack> slots, DragType type);
+    public abstract void inventoryDragPost(Map<Integer, ItemStack> slots, DragType type);
+    
+    public abstract void inventoryClose();
     
     final ItemStack noName(Material mat){
         ItemStack itemStack = new ItemStack(mat);

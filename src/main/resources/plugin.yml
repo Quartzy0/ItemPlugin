@@ -15,3 +15,6 @@ commands:
     aliases:
       - giveitem
     usage: "Usage: /giveitem <item>"
+  refresh:
+    description: Reload parts of the item plugin
+    usage: "Usage: /refresh <items|block|recipes|all>"

@@ -29,7 +29,7 @@ public class CustomItem{
         this.rarity = rarity;
         this.description = description;
         this.abilities = ability;
-        this.id = id;
+        this.id = id.toUpperCase();
     }
     
     /**
