@@ -10,11 +10,6 @@ commands:
     aliases:
       - test
     usage: "Usage: /<command> lol"
-  gi:
-    description: Give item with support for custom items
-    aliases:
-      - giveitem
-    usage: "Usage: /giveitem <item>"
   refresh:
     description: Reload parts of the item plugin
     usage: "Usage: /refresh <items|block|recipes|all>"

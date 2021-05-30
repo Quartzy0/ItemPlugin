@@ -1,6 +1,7 @@
 package com.quartzy.itemplugin.abilities;
 
 import com.quartzy.itemplugin.ActionType;
+import net.minecraft.server.v1_16_R3.MinecraftKey;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -24,8 +25,8 @@ public class TestAbility extends Ability{
     }
     
     @Override
-    public String getId(){
-        return "ability_test";
+    public MinecraftKey getId(){
+        return new MinecraftKey("itemplugin:ability_test");
     }
     
     @Override

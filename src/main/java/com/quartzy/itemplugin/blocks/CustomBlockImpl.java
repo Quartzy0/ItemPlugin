@@ -2,6 +2,7 @@ package com.quartzy.itemplugin.blocks;
 
 import com.quartzy.itemplugin.ActionType;
 import com.quartzy.itemplugin.items.Rarity;
+import net.minecraft.server.v1_16_R3.MinecraftKey;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -12,14 +13,15 @@ import org.bukkit.entity.Player;
  * It has the option to execute the command once a player clicks on it.
  */
 public final class CustomBlockImpl extends CustomBlock{
-    private final String blockItem, name, description, id;
+    private final String name, description;
+    private final MinecraftKey id, blockItem;
     private final Material material;
     private final Rarity rarity;
     private final ActionType actionType;
     private final String commandToExecute;
     private final boolean asPlayer;
     
-    public CustomBlockImpl(String blockItem, String name, String description, String id, Material material, Rarity rarity, ActionType actionType, String commandToExecute, boolean asPlayer){
+    public CustomBlockImpl(MinecraftKey blockItem, String name, String description, MinecraftKey id, Material material, Rarity rarity, ActionType actionType, String commandToExecute, boolean asPlayer){
         this.blockItem = blockItem;
         this.name = name;
         this.description = description;
@@ -35,12 +37,12 @@ public final class CustomBlockImpl extends CustomBlock{
     /**
      * Create block with no action
      */
-    public CustomBlockImpl(String blockItem, String name, String description, String id, Material material, Rarity rarity){
+    public CustomBlockImpl(MinecraftKey blockItem, String name, String description, MinecraftKey id, Material material, Rarity rarity){
         this(blockItem, name, description, id, material, rarity, null, null, false);
     }
     
     @Override
-    public String getBlockItem(){
+    public MinecraftKey getBlockItem(){
         return this.blockItem;
     }
     
@@ -55,7 +57,7 @@ public final class CustomBlockImpl extends CustomBlock{
     }
     
     @Override
-    public String getId(){
+    public MinecraftKey getId(){
         return this.id;
     }
     

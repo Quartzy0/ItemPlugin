@@ -84,11 +84,11 @@ public class RecipeHelper{
     }
     
     public static void addShapelessRecipe(List<MaterialChoice> ingredients, org.bukkit.inventory.ItemStack result){
-        shapelessKey(ingredients, result, CraftNamespacedKey.toMinecraft(new NamespacedKey(ItemPlugin.getINSTANCE(), "recipe_custom_shapeless_" + ItemManager.getItemId(result))));
+        shapelessKey(ingredients, result, new MinecraftKey("itemplugin", "recipe_shapeless_custom_" + ItemManager.getItemId(result).getKey()));
     }
     
     public static void addShapedRecipe(org.bukkit.inventory.ItemStack result, HashMap<Character, MaterialChoice> charMap, String... shape){
-        shapedKey(result, charMap, CraftNamespacedKey.toMinecraft(new NamespacedKey(ItemPlugin.getINSTANCE(), "recipe_custom_shaped_" + ItemManager.getItemId(result))), shape);
+        shapedKey(result, charMap, new MinecraftKey("itemplugin", "recipe_shaped_custom_" + ItemManager.getItemId(result).getKey()), shape);
     }
     
     public static class QShapelessRecipe extends ShapelessRecipes{
@@ -334,7 +334,7 @@ public class RecipeHelper{
         public static QRecipeItemStack fromRecipeItemStack(RecipeItemStack recipeItemStack){
             recipeItemStack.buildChoices();
             net.minecraft.server.v1_16_R3.ItemStack[] choices = recipeItemStack.choices;
-            List<String> matChoices = new ArrayList<>();
+            List<MinecraftKey> matChoices = new ArrayList<>();
             for(int i = 0; i < choices.length; i++){
                 matChoices.add(ItemManager.getItemId(choices[i]));
             }
@@ -347,28 +347,38 @@ public class RecipeHelper{
     
     public static class MaterialChoice implements RecipeChoice{
         @Getter
-        private List<String> choices;
+        private List<MinecraftKey> choices;
     
         public MaterialChoice(RecipeChoice.MaterialChoice materialChoice){
             List<org.bukkit.Material> choices = materialChoice.getChoices();
             this.choices = new ArrayList<>();
             for(org.bukkit.Material choice : choices){
-                this.choices.add(choice.name());
+                this.choices.add(CraftNamespacedKey.toMinecraft(choice.getKey()));
             }
         }
     
-        public MaterialChoice(List<String> choices){
+        public MaterialChoice(List<MinecraftKey> choices){
             if(choices ==null || choices.isEmpty()){
                 throw new IllegalArgumentException("Material choice list can not be null or empty");
             }
             this.choices = choices;
         }
         
-        public MaterialChoice(String... choices){
+        public MaterialChoice(MinecraftKey... choices){
             if(choices ==null || choices.length==0){
                 throw new IllegalArgumentException("Material choice list can not be null or empty");
             }
             this.choices = Arrays.asList(choices);
+        }
+    
+        public MaterialChoice(String... choices){
+            if(choices ==null || choices.length==0){
+                throw new IllegalArgumentException("Material choice list can not be null or empty");
+            }
+            this.choices = new ArrayList<>(choices.length);
+            for(String choice : choices){
+                this.choices.add(new MinecraftKey(choice));
+            }
         }
     
         @Override
@@ -390,7 +400,7 @@ public class RecipeHelper{
     
         @Override
         public boolean test(org.bukkit.inventory.ItemStack itemStack){
-            String itemId = ItemManager.getItemId(itemStack);
+            MinecraftKey itemId = ItemManager.getItemId(itemStack);
             return choices.contains(itemId);
         }
     }

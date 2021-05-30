@@ -1,6 +1,7 @@
 package com.quartzy.itemplugin.blocks;
 
 import com.quartzy.itemplugin.ItemPlugin;
+import net.minecraft.server.v1_16_R3.MinecraftKey;
 import net.minecraft.server.v1_16_R3.NBTTagCompound;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -12,13 +13,13 @@ import java.util.HashMap;
 public class BlockManager{
     
     private HashMap<String, BlockWorldManager> blockManagers = new HashMap<>();
-    private HashMap<String, CustomBlock> blocks = new HashMap<>();
+    private HashMap<MinecraftKey, CustomBlock> blocks = new HashMap<>();
     
     public CustomBlock getBlockFromItemStack(ItemStack itemStack){
-        if(!ItemPlugin.getINSTANCE().getItemManager().isItemValid(itemStack))return null;
+        if(!ItemPlugin.getItemManager().isItemValid(itemStack))return null;
     
         NBTTagCompound tag = CraftItemStack.asNMSCopy(itemStack).getTag();
-        String internalID = tag.getString("internalId");
+        MinecraftKey internalID = new MinecraftKey(tag.getString("internalId"));
         for(CustomBlock value : blocks.values()){
             if(value.getBlockItem().equals(internalID)){
                 return value;
@@ -31,11 +32,15 @@ public class BlockManager{
         blocks.put(block.getId(), block);
     }
     
-    public CustomBlock getBlockById(String id){
+    public CustomBlock getBlockById(MinecraftKey id){
         return blocks.get(id);
     }
     
-    public void setBlock(Location location, String data){
+    public CustomBlock getBlockById(String id){
+        return blocks.get(new MinecraftKey(id));
+    }
+    
+    public void setBlock(Location location, MinecraftKey data){
         World world = location.getWorld();
         if(world==null)return;
         if(!blockManagers.containsKey(world.getName())){
@@ -52,7 +57,7 @@ public class BlockManager{
         blockManagers.get(world.getName()).deleteBlock(location);
     }
     
-    public String getBlock(Location location){
+    public MinecraftKey getBlock(Location location){
         World world = location.getWorld();
         if(world==null)return null;
         BlockWorldManager blockWorldManager = blockManagers.get(world.getName());

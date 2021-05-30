@@ -1,19 +1,17 @@
 package com.quartzy.itemplugin.blocks;
 
-import lombok.Getter;
+import net.minecraft.server.v1_16_R3.MinecraftKey;
 import org.bukkit.Location;
 import org.bukkit.World;
 
 import java.io.*;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
 import java.util.HashMap;
 import java.util.Map;
 
 public class BlockWorldManager{
     private World world;
     
-    private HashMap<BlockPos, String> blockTypes = new HashMap<>();
+    private HashMap<BlockPos, MinecraftKey> blockTypes = new HashMap<>();
     
     public BlockWorldManager(World world){
         this.world = world;
@@ -33,19 +31,19 @@ public class BlockWorldManager{
         return file;
     }
     
-    public String getBlock(int x, int y, int z){
+    public MinecraftKey getBlock(int x, int y, int z){
         return blockTypes.get(new BlockPos(x, y, z));
     }
     
-    public String getBlock(Location location){
+    public MinecraftKey getBlock(Location location){
         return blockTypes.get(new BlockPos(location.getBlockX(), location.getBlockY(), location.getBlockZ()));
     }
     
-    public void setBlock(int x, int y, int z, String data){
+    public void setBlock(int x, int y, int z, MinecraftKey data){
         blockTypes.put(new BlockPos(x, y, z), data);
     }
     
-    public void setBlock(Location location, String data){
+    public void setBlock(Location location, MinecraftKey data){
         blockTypes.put(new BlockPos(location.getBlockX(), location.getBlockY(), location.getBlockZ()), data);
     }
     
@@ -58,7 +56,7 @@ public class BlockWorldManager{
                     long l = dataInputStream.readLong();
                     String data = dataInputStream.readUTF();
                     BlockPos blockPos = BlockPos.fromLong(l);
-                    blockTypes.put(blockPos, data);
+                    blockTypes.put(blockPos, new MinecraftKey(data));
                     System.out.println("Block " + data + " at " + blockPos);
                 }
             }catch(EOFException e){
@@ -74,9 +72,9 @@ public class BlockWorldManager{
     public void saveBlockData(){
         try{
             DataOutputStream outputStream = new DataOutputStream(new FileOutputStream(getDataFile(), false));
-            for(Map.Entry<BlockPos, String> entry : blockTypes.entrySet()){
+            for(Map.Entry<BlockPos, MinecraftKey> entry : blockTypes.entrySet()){
                 outputStream.writeLong(entry.getKey().toLong());
-                outputStream.writeUTF(entry.getValue());
+                outputStream.writeUTF(entry.getValue().toString());
             }
             outputStream.flush();
             outputStream.close();

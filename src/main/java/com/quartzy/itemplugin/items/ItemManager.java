@@ -2,13 +2,15 @@ package com.quartzy.itemplugin.items;
 
 import com.quartzy.itemplugin.ItemPlugin;
 import com.quartzy.itemplugin.abilities.Ability;
-import com.quartzy.itemplugin.abilities.TestAbility;
+import net.minecraft.server.v1_16_R3.MinecraftKey;
 import net.minecraft.server.v1_16_R3.NBTTagCompound;
 import net.minecraft.server.v1_16_R3.NBTTagList;
 import net.minecraft.server.v1_16_R3.NBTTagString;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.craftbukkit.v1_16_R3.inventory.CraftItemStack;
+import org.bukkit.craftbukkit.v1_16_R3.util.CraftNamespacedKey;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
@@ -22,8 +24,8 @@ import java.util.List;
 
 public class ItemManager{
     
-    private HashMap<java.lang.String, CustomItem> items = new HashMap<>();
-    private HashMap<java.lang.String, Ability> abilities = new HashMap<>();
+    private HashMap<MinecraftKey, CustomItem> items = new HashMap<>();
+    private HashMap<MinecraftKey, Ability> abilities = new HashMap<>();
     
     public void addItem(CustomItem item){
         items.put(item.getId(), item);
@@ -33,20 +35,44 @@ public class ItemManager{
         return items.get(id);
     }
     
-    public static String getItemId(ItemStack item){
+    public List<MinecraftKey> getAllItems(){
+        ArrayList<MinecraftKey> strings = new ArrayList<>();
+        strings.addAll(items.keySet());
+        for(Material value : Material.values()){
+            if(!value.isLegacy())strings.add(CraftNamespacedKey.toMinecraft(value.getKey()));
+        }
+        return strings;
+    }
+    
+    public List<String> getAllItemsS(){
+        ArrayList<String> strings = new ArrayList<>();
+        for(MinecraftKey minecraftKey : items.keySet()){
+            strings.add(minecraftKey.toString());
+        }
+        for(Material value : Material.values()){
+            if(!value.isLegacy())strings.add(CraftNamespacedKey.toMinecraft(value.getKey()).toString());
+        }
+        return strings;
+    }
+    
+    public static MinecraftKey getItemId(ItemStack item){
         if(item==null)return null;
         net.minecraft.server.v1_16_R3.ItemStack nmsItemStack = CraftItemStack.asNMSCopy(item);
         NBTTagCompound tag = nmsItemStack.getTag();
-        if(tag==null)return item.getType().name();
-        if(!tag.hasKey("internalId"))return item.getType().name();
-        return tag.getString("internalId").toUpperCase();
+        if(tag==null)return CraftNamespacedKey.toMinecraft(item.getType().getKey());
+        if(!tag.hasKey("internalId"))return CraftNamespacedKey.toMinecraft(item.getType().getKey());
+        return new MinecraftKey(tag.getString("internalId"));
     }
     
-    public static String getItemId(net.minecraft.server.v1_16_R3.ItemStack item){
+    public static MinecraftKey getItemId(net.minecraft.server.v1_16_R3.ItemStack item){
         return getItemId(CraftItemStack.asBukkitCopy(item));
     }
     
     public Ability getAbility(String id){
+        return abilities.get(new MinecraftKey(id));
+    }
+    
+    public Ability getAbility(MinecraftKey id){
         return abilities.get(id);
     }
     
@@ -79,7 +105,7 @@ public class ItemManager{
         net.minecraft.server.v1_16_R3.ItemStack nmsItemStack = CraftItemStack.asNMSCopy(itemStack);
         NBTTagCompound tag = nmsItemStack.getOrCreateTag();
         tag.setString("pluginVersion", ItemPlugin.pluginVersion);
-        tag.setString("internalId", item.getId().toUpperCase());
+        tag.setString("internalId", item.getId().toString());
         if(item.getAbilities()!=null && item.getAbilities().length!=0){
             NBTTagList nbtTagList = new NBTTagList();
     
@@ -87,7 +113,7 @@ public class ItemManager{
                 try{
                     Constructor<NBTTagString> constructor = NBTTagString.class.getDeclaredConstructor(java.lang.String.class);
                     constructor.setAccessible(true);
-                    NBTTagString nbtTagString = constructor.newInstance(ability.getId());
+                    NBTTagString nbtTagString = constructor.newInstance(ability.getId().toString());
                     nbtTagList.add(nbtTagString);
                 } catch(NoSuchMethodException | InvocationTargetException | InstantiationException | IllegalAccessException e){
                     e.printStackTrace();
@@ -104,8 +130,13 @@ public class ItemManager{
     }
     
     public ItemStack createItem(String id, int amount){
-        CustomItem customItem = items.get(id.toUpperCase());
-        Material material = customItem==null ? Material.getMaterial(id.toUpperCase()) : customItem.getMaterial();
+        return createItem(new MinecraftKey(id), amount);
+    }
+    
+    public ItemStack createItem(MinecraftKey id, int amount){
+        if(amount==0)return null;
+        CustomItem customItem = items.get(id);
+        Material material = customItem==null ? Material.matchMaterial(id.toString(), false) : customItem.getMaterial();
         if(material==null)return null;
         
         ItemStack itemStack = new ItemStack(material, amount);
@@ -122,7 +153,7 @@ public class ItemManager{
         net.minecraft.server.v1_16_R3.ItemStack nmsItemStack = CraftItemStack.asNMSCopy(itemStack);
         NBTTagCompound tag = nmsItemStack.getOrCreateTag();
         tag.setString("pluginVersion", ItemPlugin.pluginVersion);
-        tag.setString("internalId", id.toUpperCase());
+        tag.setString("internalId", id.toString());
         if(customItem!=null && customItem.getAbilities()!=null && customItem.getAbilities().length!=0){
             NBTTagList nbtTagList = new NBTTagList();
     
@@ -130,7 +161,7 @@ public class ItemManager{
                 try{
                     Constructor<NBTTagString> constructor = NBTTagString.class.getDeclaredConstructor(java.lang.String.class);
                     constructor.setAccessible(true);
-                    NBTTagString nbtTagString = constructor.newInstance(ability.getId());
+                    NBTTagString nbtTagString = constructor.newInstance(ability.getId().toString());
                     nbtTagList.add(nbtTagString);
                 } catch(NoSuchMethodException | InvocationTargetException | InstantiationException | IllegalAccessException e){
                     e.printStackTrace();
@@ -149,22 +180,23 @@ public class ItemManager{
         if(itemStack==null)return null;
         net.minecraft.server.v1_16_R3.ItemStack nmsItemStack = CraftItemStack.asNMSCopy(itemStack);
         NBTTagCompound tag = nmsItemStack.getOrCreateTag();
-        java.lang.String pluginVersion = tag.getString("pluginVersion");
-        java.lang.String internalId = tag.getString("internalId");
-        if(pluginVersion==null || pluginVersion.isEmpty() || internalId==null || internalId.isEmpty()){
+        String pluginVersion = tag.getString("pluginVersion");
+        String internalIdString = tag.getString("internalId");
+        MinecraftKey internalId = new MinecraftKey(internalIdString);
+        if(pluginVersion==null || pluginVersion.isEmpty() || internalIdString==null || internalIdString.isEmpty()){
             tag.setString("pluginVersion", ItemPlugin.pluginVersion);
-            tag.setString("internalId", itemStack.getType().name());
-            if(items.containsKey(itemStack.getType().name())){
+            tag.setString("internalId", itemStack.getType().getKey().toString());
+            if(items.containsKey(CraftNamespacedKey.toMinecraft(itemStack.getType().getKey()))){
                 tag.setBoolean("inUse", true);
     
-                CustomItem customItem = items.get(itemStack.getType().name());
+                CustomItem customItem = items.get(CraftNamespacedKey.toMinecraft(itemStack.getType().getKey()));
                 NBTTagList nbtTagList = new NBTTagList();
                 
                 for(Ability ability : customItem.getAbilities()){
                     try{
                         Constructor<NBTTagString> constructor = NBTTagString.class.getDeclaredConstructor(java.lang.String.class);
                         constructor.setAccessible(true);
-                        NBTTagString nbtTagString = constructor.newInstance(ability.getId());
+                        NBTTagString nbtTagString = constructor.newInstance(ability.getId().toString());
                         nbtTagList.add(nbtTagString);
                     } catch(NoSuchMethodException | InvocationTargetException | InstantiationException | IllegalAccessException e){
                         e.printStackTrace();

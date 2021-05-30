@@ -4,9 +4,7 @@ import com.quartzy.itemplugin.abilities.Ability;
 import com.quartzy.itemplugin.abilities.TestAbility;
 import com.quartzy.itemplugin.blocks.BlockManager;
 import com.quartzy.itemplugin.blocks.CustomBlockImpl;
-import com.quartzy.itemplugin.commands.GiveItemCommand;
-import com.quartzy.itemplugin.commands.RefreshCommand;
-import com.quartzy.itemplugin.commands.TestCommand;
+import com.quartzy.itemplugin.commands.*;
 import com.quartzy.itemplugin.inv.InventoryManager;
 import com.quartzy.itemplugin.items.CustomItem;
 import com.quartzy.itemplugin.items.ItemManager;
@@ -18,6 +16,8 @@ import com.quartzy.itemplugin.listener.ItemValidationListener;
 import com.quartzy.itemplugin.util.RecipeHelper;
 import lombok.Getter;
 import lombok.NonNull;
+import net.minecraft.server.v1_16_R3.MinecraftKey;
+import net.minecraft.server.v1_16_R3.MinecraftServer;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -44,6 +44,7 @@ public final class ItemPlugin extends JavaPlugin implements ItemPluginHandler{
     private ItemManager itemManager;
     private BlockManager blockManager;
     private InventoryManager inventoryManager;
+    private QCommandHandler commandHandler;
     
     @Getter
     private YamlConfiguration masterConfig;
@@ -99,7 +100,7 @@ public final class ItemPlugin extends JavaPlugin implements ItemPluginHandler{
                         abilities.add(ability);
                     }
                 }
-                CustomItem newItem = new CustomItem(mat, name, rarity, description, abilities.toArray(new Ability[0]), key);
+                CustomItem newItem = new CustomItem(mat, name, rarity, description, abilities.toArray(new Ability[0]), new MinecraftKey(key));
                 if(itemManager.getItemById(key) != null){
                     Bukkit.getLogger().warning("Item " + key + " already exists and will be overwritten");
                 }
@@ -123,7 +124,7 @@ public final class ItemPlugin extends JavaPlugin implements ItemPluginHandler{
                     continue;
                 }
                 String blockName = ifNull(configurationSection.getString("name"), key);
-                String blockItem = ifNull(configurationSection.getString("block_item"), mat.name()).toUpperCase();
+                MinecraftKey blockItem = new MinecraftKey(ifNull(configurationSection.getString("block_item"), mat.getKey().toString()));
                 String description = configurationSection.getString("description");
                 Rarity rarity = Rarity.valueOf(ifNull(configurationSection.getString("rarity"), "COMMON").toUpperCase());
                 String _action_type = configurationSection.getString("action_type");
@@ -132,8 +133,8 @@ public final class ItemPlugin extends JavaPlugin implements ItemPluginHandler{
                 String commandToExecute = configurationSection.getString("command");
                 boolean asPlayer = configurationSection.getBoolean("as_player");
                 
-                CustomBlockImpl customBlock = new CustomBlockImpl(blockItem, blockName, description, key, mat, rarity, actionType, commandToExecute, asPlayer);
-                if(blockManager.getBlockById(key.toUpperCase())!=null){
+                CustomBlockImpl customBlock = new CustomBlockImpl(blockItem, blockName, description, new MinecraftKey(key), mat, rarity, actionType, commandToExecute, asPlayer);
+                if(blockManager.getBlockById(key)!=null){
                     Bukkit.getLogger().warning("Block with id " + key + " already exists and will be overwritten");
                 }
                 blockManager.addBlock(customBlock);
@@ -207,13 +208,6 @@ public final class ItemPlugin extends JavaPlugin implements ItemPluginHandler{
         }
         //Add self as handler to add custom blocks
         addHandler(this);
-        
-        //Load all items
-        reloadItems();
-        //Load all blocks
-        reloadBlocks();
-        //Load all recipes
-        reloadRecipes();
     
         //Register listeners
         getServer().getPluginManager().registerEvents(new ItemValidationListener(), this);
@@ -223,10 +217,24 @@ public final class ItemPlugin extends JavaPlugin implements ItemPluginHandler{
         
         //Register commands
         getCommand("testcommand").setExecutor(new TestCommand());
-        getCommand("gi").setExecutor(new GiveItemCommand());
         getCommand("refresh").setExecutor(new RefreshCommand());
+    
+        commandHandler = new QCommandHandler();
+        commandHandler.addCommand(new GiveItemCommand());
+    
+        commandHandler.init(MinecraftServer.getServer().getCommandDispatcher());
         
         Bukkit.getServer().getLogger().info("Item Plugin enabled");
+        
+        //Load items after all plugins have been initialized
+        Bukkit.getScheduler().runTaskLater(this, () -> {
+            //Load all items
+            reloadItems();
+            //Load all blocks
+            reloadBlocks();
+            //Load all recipes
+            reloadRecipes();
+        }, 1L);
     }
     
     public void reloadRecipes(){
@@ -268,9 +276,9 @@ public final class ItemPlugin extends JavaPlugin implements ItemPluginHandler{
     @Override
     public void addItems(ItemManager itemManager){
         TestAbility testAbility = new TestAbility(5);
-        itemManager.addItem(new CustomItem(Material.DIAMOND_SWORD, "Aspect of the end", Rarity.EPIC, "Epic sword that do da whooosh", new Ability[]{testAbility}, "ASPECT_OF_THE_END"));
+        itemManager.addItem(new CustomItem(Material.DIAMOND_SWORD, "Aspect of the end", Rarity.EPIC, "Epic sword that do da whooosh", new Ability[]{testAbility}, new MinecraftKey("itemplugin:aspect_of_the_end")));
         itemManager.addAbility(testAbility);
-        itemManager.addItem(new CustomItem(Material.DIAMOND, "Special diamond", Rarity.RARE, "Rare shiny diamond", null, "SPECIAL_DIAMOND"));
+        itemManager.addItem(new CustomItem(Material.DIAMOND, "Special diamond", Rarity.RARE, "Rare shiny diamond", null, new MinecraftKey("itemplugin:special_diamond")));
     }
     
     @Override
@@ -280,14 +288,14 @@ public final class ItemPlugin extends JavaPlugin implements ItemPluginHandler{
     @Override
     public void addRecipes(){
         HashMap<Character, RecipeHelper.MaterialChoice> charMap = new HashMap<>();
-        charMap.put('d', new RecipeHelper.MaterialChoice("SPECIAL_DIAMOND"));
-        charMap.put('s', new RecipeHelper.MaterialChoice("STICK"));
+        charMap.put('d', new RecipeHelper.MaterialChoice("itemplugin:special_diamond"));
+        charMap.put('s', new RecipeHelper.MaterialChoice("minecraft:stick"));
     
-        ItemStack aspect_of_the_end = itemManager.createItem("ASPECT_OF_THE_END", 1);
+        ItemStack aspect_of_the_end = itemManager.createItem("itemplugin:aspect_of_the_end", 1);
         RecipeHelper.addShapedRecipe(aspect_of_the_end, charMap, "d", "d", "s");
     
         List<RecipeHelper.MaterialChoice> ing = new ArrayList<>();
-        ing.add(new RecipeHelper.MaterialChoice("SPECIAL_DIAMOND"));
-        RecipeHelper.addShapelessRecipe(ing, itemManager.createItem("DIAMOND", 64));
+        ing.add(new RecipeHelper.MaterialChoice("itemplugin:special_diamond"));
+        RecipeHelper.addShapelessRecipe(ing, itemManager.createItem("minecraft:diamond", 64));
     }
 }

@@ -28,7 +28,7 @@ public class AbilityListener implements Listener{
         if(abilities.isEmpty())return;
         for(NBTBase abilityTag : abilities){
             NBTTagString nbtTagString = (NBTTagString) abilityTag;
-            ItemManager itemManager = ItemPlugin.getINSTANCE().getItemManager();
+            ItemManager itemManager = ItemPlugin.getItemManager();
             Ability ability = itemManager.getAbility(nbtTagString.asString());
             if(ability.getAction().isEquivalent(event.getAction())){
                 ability.onAction(item, event.getPlayer());

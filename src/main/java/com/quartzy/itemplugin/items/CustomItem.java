@@ -2,8 +2,10 @@ package com.quartzy.itemplugin.items;
 
 import com.quartzy.itemplugin.abilities.Ability;
 import lombok.Getter;
+import net.minecraft.server.v1_16_R3.MinecraftKey;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,23 +15,23 @@ public class CustomItem{
     @Getter
     private Material material;
     @Getter
-    private java.lang.String name;
+    private String name;
     @Getter
     private Rarity rarity;
     @Getter
-    private java.lang.String description;
+    private String description;
     @Getter
     private Ability[] abilities;
     @Getter
-    private java.lang.String id;
+    private MinecraftKey id;
     
-    public CustomItem(Material material, java.lang.String name, Rarity rarity, java.lang.String description, Ability[] ability, java.lang.String id){
+    public CustomItem(Material material, java.lang.String name, Rarity rarity, String description, Ability[] ability, MinecraftKey id){
         this.material = material;
         this.name = name;
         this.rarity = rarity;
         this.description = description;
         this.abilities = ability;
-        this.id = id.toUpperCase();
+        this.id = id;
     }
     
     /**

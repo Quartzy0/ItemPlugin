@@ -4,10 +4,7 @@ import com.quartzy.itemplugin.ItemPlugin;
 import com.quartzy.itemplugin.blocks.BlockManager;
 import com.quartzy.itemplugin.blocks.CustomBlock;
 import com.quartzy.itemplugin.items.ItemManager;
-import net.minecraft.server.v1_16_R3.PacketPlayOutNamedSoundEffect;
-import net.minecraft.server.v1_16_R3.SoundCategory;
-import net.minecraft.server.v1_16_R3.SoundEffect;
-import net.minecraft.server.v1_16_R3.SoundEffectType;
+import net.minecraft.server.v1_16_R3.*;
 import org.bukkit.Effect;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
@@ -69,7 +66,7 @@ public class BlockListener implements Listener{
     @EventHandler
     public void blockBreak(BlockBreakEvent event){
         BlockManager blockManager = ItemPlugin.getBlockManager();
-        String block = blockManager.getBlock(event.getBlock().getLocation());
+        MinecraftKey block = blockManager.getBlock(event.getBlock().getLocation());
         
         if(block==null)return;
         
@@ -78,7 +75,7 @@ public class BlockListener implements Listener{
         if(event.getPlayer().getGameMode() == GameMode.CREATIVE)return;
         
         event.setDropItems(false);
-        String blockItem = blockManager.getBlockById(block).getBlockItem();
+        MinecraftKey blockItem = blockManager.getBlockById(block).getBlockItem();
         ItemManager itemManager = ItemPlugin.getItemManager();
         ItemStack item = itemManager.createItem(blockItem, 1);
         event.getBlock().getWorld().dropItem(event.getBlock().getLocation(), item);
@@ -89,7 +86,7 @@ public class BlockListener implements Listener{
         if(event.getAction() == Action.LEFT_CLICK_BLOCK || event.getAction() == Action.RIGHT_CLICK_BLOCK){
             if(event.getHand() != EquipmentSlot.HAND)return;
             BlockManager blockManager = ItemPlugin.getBlockManager();
-            String blockId = blockManager.getBlock(event.getClickedBlock().getLocation());
+            MinecraftKey blockId = blockManager.getBlock(event.getClickedBlock().getLocation());
             if(blockId==null)return;
             CustomBlock block = blockManager.getBlockById(blockId);
             if(block==null)return;
