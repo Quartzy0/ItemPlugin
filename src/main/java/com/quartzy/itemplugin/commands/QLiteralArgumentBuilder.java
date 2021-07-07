@@ -9,6 +9,7 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import com.mojang.brigadier.tree.CommandNode;
+import net.minecraft.server.v1_16_R3.MinecraftKey;
 
 import java.util.function.Predicate;
 
@@ -33,6 +34,10 @@ public class QLiteralArgumentBuilder<S> extends LiteralArgumentBuilder<S>{
     
     public <T> QLiteralArgumentBuilder<S> then(String s, ArgumentType<T> argumenttype, String... suggestions){
         return then(s, argumenttype, QSuggestionProvider.string(suggestions));
+    }
+    
+    public <T> QLiteralArgumentBuilder<S> then(String s, ArgumentType<T> argumenttype, MinecraftKey... suggestions){
+        return then(s, argumenttype, QSuggestionProvider.keyed(suggestions));
     }
     
     public <T> QLiteralArgumentBuilder<S> then(String s, ArgumentType<T> argumenttype, Integer... suggestions){

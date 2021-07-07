@@ -13,6 +13,8 @@ import com.quartzy.itemplugin.listener.AbilityListener;
 import com.quartzy.itemplugin.listener.BlockListener;
 import com.quartzy.itemplugin.listener.InventoryListener;
 import com.quartzy.itemplugin.listener.ItemValidationListener;
+import com.quartzy.itemplugin.textures.ResourcePack;
+import com.quartzy.itemplugin.textures.ResourceWebServer;
 import com.quartzy.itemplugin.util.RecipeHelper;
 import lombok.Getter;
 import lombok.NonNull;
@@ -21,15 +23,20 @@ import net.minecraft.server.v1_16_R3.MinecraftServer;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.configuration.Configuration;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.craftbukkit.v1_16_R3.CraftServer;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
 
 public final class ItemPlugin extends JavaPlugin implements ItemPluginHandler{
@@ -45,6 +52,7 @@ public final class ItemPlugin extends JavaPlugin implements ItemPluginHandler{
     private BlockManager blockManager;
     private InventoryManager inventoryManager;
     private QCommandHandler commandHandler;
+    private ResourcePack resourcePack;
     
     @Getter
     private YamlConfiguration masterConfig;
@@ -52,6 +60,8 @@ public final class ItemPlugin extends JavaPlugin implements ItemPluginHandler{
     private List<YamlConfiguration> itemConfiguration;
     @Getter
     private List<YamlConfiguration> blockConfiguration;
+    
+    private ResourceWebServer server;
     
     private void resolveConfigurations(File file, List<YamlConfiguration> config){
         if(file==null)return;
@@ -198,10 +208,7 @@ public final class ItemPlugin extends JavaPlugin implements ItemPluginHandler{
             blockConfiguration = new ArrayList<>();
             resolveConfigurations(itemConfigurationFolder, itemConfiguration);
             resolveConfigurations(blockConfigurationFolder, blockConfiguration);
-            if(!masterConfigFile.exists()){
-                dataFolder.toFile().mkdirs();
-                masterConfigFile.createNewFile();
-            }
+            copyDefault("defaults/config/config.yml", masterConfigFile.toPath());
             masterConfig.load(masterConfigFile);
         } catch(IOException | InvalidConfigurationException e){
             e.printStackTrace();
@@ -217,14 +224,20 @@ public final class ItemPlugin extends JavaPlugin implements ItemPluginHandler{
         
         //Register commands
         getCommand("testcommand").setExecutor(new TestCommand());
-        getCommand("refresh").setExecutor(new RefreshCommand());
     
         commandHandler = new QCommandHandler();
         commandHandler.addCommand(new GiveItemCommand());
+        commandHandler.addCommand(new ResourcePackCommand());
+        commandHandler.addCommand(new ItemPluginCommand());
     
-        commandHandler.init(MinecraftServer.getServer().getCommandDispatcher());
+        commandHandler.init(((CraftServer) Bukkit.getServer()).getServer().getCommandDispatcher());
         
         Bukkit.getServer().getLogger().info("Item Plugin enabled");
+        
+        //Is using custom resource pack
+        if(masterConfig.getBoolean("resourcepack")){
+            this.resourcePack = new ResourcePack("Server resource pack", dataFolder.resolve("resourcepack_textures"), dataFolder.resolve("resourcepack_genrated"));
+        }
         
         //Load items after all plugins have been initialized
         Bukkit.getScheduler().runTaskLater(this, () -> {
@@ -234,7 +247,20 @@ public final class ItemPlugin extends JavaPlugin implements ItemPluginHandler{
             reloadBlocks();
             //Load all recipes
             reloadRecipes();
+            
+            //Generate resource pack after all items are initialized
+            if(this.resourcePack!=null){
+                String resourcepack_name = ifNull(masterConfig.getString("resourcepack_name"), "pack.zip");
+                this.resourcePack.generateZipFile(dataFolder.resolve("resourcepack_genrated").resolve(resourcepack_name));
+            }
         }, 1L);
+        
+        //Start resources web server
+        Path resources = dataFolder.resolve("resourcepack_genrated");
+        this.server = ResourceWebServer.createWebServer(resources);
+        
+        //Create a warning file for users
+        copyDefault("defaults/config/warning.txt", resources.resolve("warning.txt"));
     }
     
     public void reloadRecipes(){
@@ -265,6 +291,10 @@ public final class ItemPlugin extends JavaPlugin implements ItemPluginHandler{
         return INSTANCE.inventoryManager;
     }
     
+    public static ResourcePack getResourcePack(){
+        return INSTANCE.resourcePack;
+    }
+    
     public static void addHandler(@NonNull ItemPluginHandler handler){
         INSTANCE.handlers.add(handler);
     }
@@ -278,11 +308,13 @@ public final class ItemPlugin extends JavaPlugin implements ItemPluginHandler{
         TestAbility testAbility = new TestAbility(5);
         itemManager.addItem(new CustomItem(Material.DIAMOND_SWORD, "Aspect of the end", Rarity.EPIC, "Epic sword that do da whooosh", new Ability[]{testAbility}, new MinecraftKey("itemplugin:aspect_of_the_end")));
         itemManager.addAbility(testAbility);
-        itemManager.addItem(new CustomItem(Material.DIAMOND, "Special diamond", Rarity.RARE, "Rare shiny diamond", null, new MinecraftKey("itemplugin:special_diamond")));
+        CustomItem item = new CustomItem(Material.DIAMOND, "Special diamond", Rarity.RARE, "Rare shiny diamond", null, new MinecraftKey("itemplugin:special_diamond"));
+        itemManager.addItemTextured(item, "diamond", "item/special_diamond", 100);
     }
     
     @Override
     public void addBlocks(BlockManager blockManager){
+    
     }
     
     @Override
@@ -297,5 +329,28 @@ public final class ItemPlugin extends JavaPlugin implements ItemPluginHandler{
         List<RecipeHelper.MaterialChoice> ing = new ArrayList<>();
         ing.add(new RecipeHelper.MaterialChoice("itemplugin:special_diamond"));
         RecipeHelper.addShapelessRecipe(ing, itemManager.createItem("minecraft:diamond", 64));
+    }
+    
+    private static void copyDefault(String src, Path dest){
+        if(src==null || dest==null)return;
+        if(src.isEmpty() || src.isBlank())return;
+        if(Files.exists(dest))return;
+        InputStream resourceAsStream = ItemPlugin.class.getClassLoader().getResourceAsStream(src);
+        if(resourceAsStream==null)return;
+        try{
+            Files.createDirectories(dest.normalize().toAbsolutePath().getParent());
+            Files.copy(resourceAsStream, dest);
+        } catch(IOException e){
+            System.err.println("Error when copying defaults");
+            Bukkit.getLogger().throwing(ItemPlugin.class.getName(), "copyDefault", e);
+        }
+    }
+    
+    public static boolean isAvailable(){
+        return ItemPlugin.INSTANCE!=null && ItemPlugin.INSTANCE.isEnabled();
+    }
+    
+    public static boolean isItemsAvailable(){
+        return isAvailable() && ItemPlugin.getItemManager()!=null;
     }
 }

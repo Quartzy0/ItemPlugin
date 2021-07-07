@@ -1,11 +1,10 @@
 package com.quartzy.itemplugin.blocks;
 
 import com.quartzy.itemplugin.ItemPlugin;
+import com.quartzy.itemplugin.items.ItemManager;
 import net.minecraft.server.v1_16_R3.MinecraftKey;
-import net.minecraft.server.v1_16_R3.NBTTagCompound;
 import org.bukkit.Location;
 import org.bukkit.World;
-import org.bukkit.craftbukkit.v1_16_R3.inventory.CraftItemStack;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.HashMap;
@@ -16,20 +15,33 @@ public class BlockManager{
     private HashMap<MinecraftKey, CustomBlock> blocks = new HashMap<>();
     
     public CustomBlock getBlockFromItemStack(ItemStack itemStack){
-        if(!ItemPlugin.getItemManager().isItemValid(itemStack))return null;
-    
-        NBTTagCompound tag = CraftItemStack.asNMSCopy(itemStack).getTag();
-        MinecraftKey internalID = new MinecraftKey(tag.getString("internalId"));
-        for(CustomBlock value : blocks.values()){
-            if(value.getBlockItem().equals(internalID)){
-                return value;
-            }
-        }
-        return null;
+        MinecraftKey itemId = ItemManager.getItemId(itemStack);
+        return blocks.get(itemId);
     }
     
     public void addBlock(CustomBlock block){
         blocks.put(block.getId(), block);
+    }
+    
+    public void addBlockTextured(CustomBlock block, boolean down, boolean east, boolean north, boolean south, boolean up, boolean west, boolean useMultipart, String model, String override_model){
+        blocks.put(block.getId(), block);
+        if(ItemPlugin.getResourcePack()!=null){
+            ItemPlugin.getResourcePack().addBlockTexture(block.getId(), down, east, north, south, up, west, useMultipart, model, override_model);
+        }
+    }
+    
+    public void addBlockTextured(CustomBlock block, boolean down, boolean east, boolean north, boolean south, boolean up, boolean west, String model, String override_model){
+        blocks.put(block.getId(), block);
+        if(ItemPlugin.getResourcePack()!=null){
+            ItemPlugin.getResourcePack().addBlockTexture(block.getId(), down, east, north, south, up, west, model, override_model);
+        }
+    }
+    
+    public void addBlockTextured(CustomBlock block, String model, String override_model){
+        blocks.put(block.getId(), block);
+        if(ItemPlugin.getResourcePack()!=null){
+            ItemPlugin.getResourcePack().addBlockTexture(block.getId(), model, override_model);
+        }
     }
     
     public CustomBlock getBlockById(MinecraftKey id){

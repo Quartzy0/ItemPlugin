@@ -17,10 +17,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import javax.annotation.Nullable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 
 public class ItemManager{
     
@@ -29,6 +26,34 @@ public class ItemManager{
     
     public void addItem(CustomItem item){
         items.put(item.getId(), item);
+    }
+    
+    public void addItemTextured(CustomItem item, String item_override, String item_texture, int customModelData){
+        addItem(item);
+        if(ItemPlugin.getResourcePack()!=null){
+            ItemPlugin.getResourcePack().addItemTexture(item.getId(), item_override, item_texture, customModelData);
+        }
+    }
+    
+    public void addItemTextured(CustomItem item, String item_override, String item_texture){
+        addItem(item);
+        if(ItemPlugin.getResourcePack()!=null){
+            ItemPlugin.getResourcePack().addItemTexture(item.getId(), item_override, item_texture);
+        }
+    }
+    
+    public void addItemTextured(CustomItem item, String item_override){
+        addItem(item);
+        if(ItemPlugin.getResourcePack()!=null){
+            ItemPlugin.getResourcePack().addItemTexture(item.getId(), item_override);
+        }
+    }
+    
+    public void addItemTextured(CustomItem item){
+        addItem(item);
+        if(ItemPlugin.getResourcePack()!=null){
+            ItemPlugin.getResourcePack().addItemTexture(item);
+        }
     }
     
     public CustomItem getItemById(String id){
@@ -121,6 +146,12 @@ public class ItemManager{
             }
             tag.set("abilities", nbtTagList);
         }
+        if(ItemPlugin.getResourcePack()!=null){
+            int modelData = ItemPlugin.getResourcePack().getModelData(item);
+            if(modelData!=-1){
+                tag.setInt("CustomModelData", modelData);
+            }
+        }
         
         tag.setBoolean("inUse", true);
         nmsItemStack.setTag(tag);
@@ -168,6 +199,12 @@ public class ItemManager{
                 }
             }
             tag.set("abilities", nbtTagList);
+        }
+        if(ItemPlugin.getResourcePack()!=null){
+            int modelData = ItemPlugin.getResourcePack().getModelData(customItem);
+            if(modelData!=-1){
+                tag.setInt("CustomModelData", modelData);
+            }
         }
         tag.setBoolean("inUse", customItem!=null);
         nmsItemStack.setTag(tag);
@@ -241,6 +278,68 @@ public class ItemManager{
             itemStack.setItemMeta(itemMeta);
         }
         return itemStack;
+    }
+    
+    public MinecraftKey getMinecraftItem(MinecraftKey id){
+        return items.containsKey(id) ? CraftNamespacedKey.toMinecraft(items.get(id).getMaterial().getKey()) : id;
+    }
+    
+    public NBTTagCompound generateItemNBT(MinecraftKey item){
+        NBTTagCompound tag = new NBTTagCompound();
+        CustomItem customItem = items.get(item);
+        Material material = customItem==null ? Material.matchMaterial(item.toString(), false) : customItem.getMaterial();
+        if(material==null)return tag;
+        
+        tag.setString("pluginVersion", ItemPlugin.pluginVersion);
+        tag.setString("internalId", item.toString());
+        if(customItem!=null){
+            NBTTagCompound compound = new NBTTagCompound();
+            compound.setString("Name", customItem.getName());
+    
+            NBTTagList nbtTagList = new NBTTagList();
+            List<String> strings = customItem.generateLore();
+            Constructor<NBTTagString> constructor = null;
+            try{
+                constructor = NBTTagString.class.getDeclaredConstructor(String.class);
+            } catch(NoSuchMethodException e){
+                e.printStackTrace();
+            }
+            constructor.setAccessible(true);
+            for(String string : strings){
+                try{
+                    NBTTagString nbtTagString = constructor.newInstance(string);
+                    nbtTagList.add(nbtTagString);
+                } catch(InvocationTargetException | InstantiationException | IllegalAccessException e){
+                    e.printStackTrace();
+                }
+            }
+            compound.set("Lore", nbtTagList);
+            tag.set("display", compound);
+        }
+        if(customItem!=null && customItem.getAbilities()!=null && customItem.getAbilities().length!=0){
+            NBTTagList nbtTagList = new NBTTagList();
+        
+            for(Ability ability : customItem.getAbilities()){
+                try{
+                    Constructor<NBTTagString> constructor = NBTTagString.class.getDeclaredConstructor(String.class);
+                    constructor.setAccessible(true);
+                    NBTTagString nbtTagString = constructor.newInstance(ability.getId().toString());
+                    nbtTagList.add(nbtTagString);
+                } catch(NoSuchMethodException | InvocationTargetException | InstantiationException | IllegalAccessException e){
+                    e.printStackTrace();
+                }
+            }
+            tag.set("abilities", nbtTagList);
+        }
+        if(ItemPlugin.getResourcePack()!=null){
+            int modelData = ItemPlugin.getResourcePack().getModelData(customItem);
+            if(modelData!=-1){
+                tag.setInt("CustomModelData", modelData);
+            }
+        }
+        tag.setBoolean("inUse", customItem!=null);
+        
+        return tag;
     }
     
     public void clearItems(){
